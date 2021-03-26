@@ -25,3 +25,45 @@ It uses the [OneSplitAudit.sol](https://github.com/1inch/1inchProtocol/blob/mast
 `_priceDifference` : max percentage difference tolerable between oracle value and expected-return value
 
 `_slippage` : max percentage difference tolerable between expected-return value and actual swap value
+
+## Running tests
+
+Clone the repository:
+
+```sh
+git clone https://github.com/piyush69/Exchange-Token-LINK.git
+cd Exchange-Token-LINK/
+```
+
+Install dependencies
+
+```sh
+npm install
+```
+
+In a different window, use ganache-cli to fork the mainnet and run it locally
+
+```sh
+ganache-cli -f https://cloudflare-eth.com/  -m "<your 12 word mnemonic>" -i 999
+```
+
+Run tests
+
+```sh
+truffle test
+```
+
+You should see output like the following:
+```
+  Contract: ExchangeToken
+    √ Should deploy smart contract
+    √ Should fetch correct LINK/USD oracle data (394ms)
+    √ Should fetch correct LINK/ETH oracle data (4741ms)
+    √ Should swap only if within acceptable price difference: 5% (4132ms)
+    √ Should swap only if within acceptable price difference: 0% (5683ms)
+    √ Should revert when slippage > 10 (609ms)
+    √ Should revert when price difference > 10 (215ms)
+
+
+  7 passing (16s)
+```

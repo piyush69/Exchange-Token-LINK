@@ -1,0 +1,29 @@
+{
+  "name": "uniswap",
+  "version": "1.0.0",
+  "description": "A smart contract to exchange ETH/DAI for LINK using 1inch smart contracts",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "chai": "^4.3.4",
+    "ganache-cli": "^6.12.2",
+    "openzeppelin-test-helpers": "^0.5.1",
+    "truffle": "^5.2.5"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/piyush69/Exchange-Token-LINK.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/piyush69/Exchange-Token-LINK/issues"
+  },
+  "homepage": "https://github.com/piyush69/Exchange-Token-LINK#readme"
+}
