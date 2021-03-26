@@ -9,14 +9,14 @@ contract ExchangeToken {
 
     address internal priceFeed_LinkEth;
     address internal priceFeed_LinkUsd;
-    
+
     address public onesplit;
     address public linkToken;
     address public daiToken;
 
     uint public constant daiDecimal = 8;
     uint public constant ethDecimal = 18;
-    
+
     uint internal constant FLAG_DISABLE_ALL_WRAP_SOURCES = 0x40000000;
     uint internal constant FLAG_DISABLE_BALANCER_ALL = 0x1000000000000;
     uint internal constant FLAG_DISABLE_BANCOR = 0x04;
@@ -29,7 +29,7 @@ contract ExchangeToken {
     uint internal constant FLAG_DISABLE_SHELL = 0x8000000000;
 
     uint internal constant FLAG_ENABLE_UNISWAP_ONLY = FLAG_DISABLE_ALL_WRAP_SOURCES + FLAG_DISABLE_BALANCER_ALL + FLAG_DISABLE_BANCOR + FLAG_DISABLE_CURVE_ALL + FLAG_DISABLE_DFORCE_SWAP + FLAG_DISABLE_KYBER_ALL + FLAG_DISABLE_MOONISWAP + FLAG_DISABLE_MSTABLE_MUSD + FLAG_DISABLE_OASIS + FLAG_DISABLE_SHELL;
-    
+
     event SwapCancelled(string reason);
 
     constructor() {
@@ -48,7 +48,7 @@ contract ExchangeToken {
 
     function getOracleLatestPrice(address _priceFeed) public view returns (uint) {
         (
-            uint80 roundID, 
+            uint80 roundID,
             int price,
             uint startedAt,
             uint timeStamp,
@@ -57,41 +57,68 @@ contract ExchangeToken {
         return uint(price);
     }
 
+    function calculateDaiSwap(uint _priceDifference, uint _fromBalance) public view returns (
+        uint oracleExpectedLink,
+        uint expected,
+        uint256[] memory distribution,
+        bool withinBudget) {
+
+        oracleExpectedLink = (_fromBalance * 10 ** daiDecimal) / getOracleLatestPrice(priceFeed_LinkUsd);
+        (expected, distribution) = OneSplitAudit(onesplit).getExpectedReturn(daiToken, linkToken, _fromBalance, 100, FLAG_ENABLE_UNISWAP_ONLY);
+
+        withinBudget = (expected >= (oracleExpectedLink * (100 - _priceDifference))/100 );
+        return (oracleExpectedLink, expected, distribution, withinBudget);
+    }
+
     function exchangeBalanceDai(uint _priceDifference, uint _slippage) checkBuffers(_priceDifference, _slippage) external {
         uint fromBalance = IERC20(daiToken).balanceOf(address(this));
-        uint oracleExpectedLink = (fromBalance * 10 ** daiDecimal) / getOracleLatestPrice(priceFeed_LinkUsd);
-        
-        uint[] memory distribution;
         uint expected;
-        (expected, distribution) = OneSplitAudit(onesplit).getExpectedReturn(daiToken, linkToken, fromBalance, 100, FLAG_ENABLE_UNISWAP_ONLY);
+        uint[] memory distribution;
+        bool withinBudget;
 
-        if (expected < (oracleExpectedLink * (100 - _priceDifference))/100 ) {
+        (, expected, distribution, withinBudget) = calculateDaiSwap(_priceDifference, fromBalance);
+
+        if (!withinBudget) {
             emit SwapCancelled("Expected return less than Price Feed quantity");
             return;
         }
         uint minReturn = (expected * (100 - _slippage))/100;
-        
+
         IERC20(daiToken).approve(onesplit, fromBalance);
         OneSplitAudit(onesplit).swap(daiToken, linkToken, fromBalance, minReturn, distribution, FLAG_ENABLE_UNISWAP_ONLY);
     }
 
+    function calculateEthSwap(uint _priceDifference, uint _fromBalance) public view returns (
+        uint oracleExpectedLink,
+        uint expected,
+        uint256[] memory distribution,
+        bool withinBudget) {
+
+        oracleExpectedLink = (_fromBalance * 10 ** ethDecimal) / getOracleLatestPrice(priceFeed_LinkEth);
+        (expected, distribution) = OneSplitAudit(onesplit).getExpectedReturn(address(0), linkToken, _fromBalance, 100, FLAG_ENABLE_UNISWAP_ONLY);
+
+        withinBudget = (expected >= (oracleExpectedLink * (100 - _priceDifference))/100 );
+        return (oracleExpectedLink, expected, distribution, withinBudget);
+    }
+
     function exchangeBalanceEth(uint _priceDifference, uint _slippage) checkBuffers(_priceDifference, _slippage) external {
         uint fromBalance = address(this).balance;
-        uint oracleExpectedLink = (fromBalance * 10 ** ethDecimal) / getOracleLatestPrice(priceFeed_LinkEth);
-        
-        uint[] memory distribution;
         uint expected;
-        (expected, distribution) = OneSplitAudit(onesplit).getExpectedReturn(address(0), linkToken, fromBalance, 100, FLAG_ENABLE_UNISWAP_ONLY);
+        uint[] memory distribution;
+        bool withinBudget;
 
-        if (expected < (oracleExpectedLink * (100 - _priceDifference))/100 ) {
+        (, expected, distribution, withinBudget) = calculateEthSwap(_priceDifference, fromBalance);
+
+        if (!withinBudget) {
             emit SwapCancelled("Expected return less than Price Feed quantity");
             return;
         }
+
         uint minReturn = (expected * (100 - _slippage))/100;
         OneSplitAudit(onesplit).swap{value:fromBalance}(address(0), linkToken, fromBalance, minReturn, distribution, FLAG_ENABLE_UNISWAP_ONLY);
     }
 
-    fallback() external payable {
+    receive() external payable {
     }
 
     function depositEther() external payable {
